@@ -1,0 +1,35 @@
+﻿#pragma kernel CSMain
+
+RWTexture2D<float4> Result;
+
+#include "Quaternion.cginc"
+
+struct Particle
+{
+	float3 position;
+	float4 rotation;
+	float4 rotationAxisY;
+};
+
+RWStructuredBuffer<Particle> _ParticleBufferRW;
+
+float3 _TargetPosition;
+float  _DeltaTime;
+float  _Time;
+
+[numthreads(1, 1, 1)]
+void CSMain (uint3 id : SV_DispatchThreadID)
+{
+	Particle p = _ParticleBufferRW[id.x];
+
+	// ターゲットを向く
+	float4 targetRotation = quaternionLookAt(p.position.xyz, _TargetPosition.xyz, float3(0, 0, 1), float3(0, 1, 0));
+	p.rotation = quaternionSlerp(p.rotation, targetRotation, _DeltaTime * 4.0);
+
+	// ターゲットへのベクトルを軸にして回転
+	float3 dir = normalize(_TargetPosition);
+	p.rotationAxisY = rotationAxisToQuaternion(dir, 5 * sin(_Time * 1.0));
+
+	_ParticleBufferRW[id.x] = p;
+
+}
